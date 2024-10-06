@@ -868,10 +868,6 @@ static LRESULT CALLBACK window_callback(HWND hWnd, UINT message,
             d->flags &= ~ALLEGRO_MINIMIZED;
 
          if (LOWORD(wParam) != WA_INACTIVE) {
-            // Make fullscreen windows TOPMOST again
-            if (d->flags & ALLEGRO_FULLSCREEN_WINDOW) {
-               SetWindowPos(win_display->window, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-            }
             if (d->vt->switch_in)
                d->vt->switch_in(d);
             _al_win_fix_modifiers();
@@ -888,11 +884,6 @@ static LRESULT CALLBACK window_callback(HWND hWnd, UINT message,
             return 0;
          }
          else {
-            // Remove TOPMOST flag from fullscreen windows so we can alt-tab. Also must raise the new activated window
-            if (d->flags & ALLEGRO_FULLSCREEN_WINDOW) {
-               SetWindowPos(win_display->window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-               SetWindowPos(GetForegroundWindow(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-            }
             if (d->flags & ALLEGRO_FULLSCREEN) {
                d->vt->switch_out(d);
             }
@@ -1239,17 +1230,11 @@ void _al_win_get_window_position(HWND window, int *x, int *y)
 static void update_adapter(ALLEGRO_DISPLAY *display)
 {
    ALLEGRO_DISPLAY_WIN *win_display = (void*)display;
-   int x, y, adapter, num_adapters;
-   al_get_window_position(display, &x, &y);
-   num_adapters = al_get_num_video_adapters();
-   for (adapter = 0; adapter < num_adapters; adapter++) {
-      ALLEGRO_MONITOR_INFO mi;
-      al_get_monitor_info(adapter, &mi);
-      if (x >= mi.x1 && x < mi.x2 && y >= mi.y1 && y < mi.y2) {
-         win_display->adapter = adapter;
-         break;
-      }
-   }
+   int adapter = al_get_display_adapter(display);
+   if (adapter >= 0)
+      win_display->adapter = adapter;
+   else
+      win_display->adapter = 0;
 }
 
 
@@ -1348,17 +1333,14 @@ bool _al_win_set_display_flag(ALLEGRO_DISPLAY *display, int flag, bool onoff)
          al_resize_display(display, display->w, display->h);
 
          if (onoff) {
-            // Re-set the TOPMOST flag and move to position
-            SetWindowPos(win_display->window, HWND_TOPMOST, mi.x1, mi.y1, 0, 0, SWP_NOSIZE);
+            // Move to position
+            SetWindowPos(win_display->window, HWND_TOP, mi.x1, mi.y1, 0, 0, SWP_NOSIZE);
          }
          else {
             int pos_x = 0;
             int pos_y = 0;
             WINDOWINFO wi;
             int bw, bh;
-
-            // Unset the topmost flag
-            SetWindowPos(win_display->window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 
             // Center the window
             _al_win_get_window_center(win_display, display->w, display->h, &pos_x, &pos_y);
