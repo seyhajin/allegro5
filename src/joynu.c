@@ -21,6 +21,7 @@
 
 #define ALLEGRO_NO_COMPATIBILITY
 
+#include <ctype.h>
 #include <stdio.h>
 
 #include "allegro5/allegro.h"
@@ -850,12 +851,20 @@ bool al_set_joystick_mappings_f(ALLEGRO_FILE *f)
    char line[1024];
 
    while (al_fgets(f, line, sizeof(line))) {
-      if (line[0] == '#' || line[0] == '\n')
+      char* line_start = line;
+      char* line_end = line + strlen(line);
+      while (isspace(*line_start))
+         line_start++;
+      while (line_end > line_start && isspace(*(line_end - 1))) {
+         line_end--;
+         *line_end = '\0';
+      }
+      if (line_start[0] == '#' || line_start[0] == '\0')
          continue;
       _AL_JOYSTICK_MAPPING *mapping = _al_vector_alloc_back(&joystick_mappings);
       if (!mapping)
          return false;
-      if (!parse_sdl_joystick_mapping(line, mapping)) {
+      if (!parse_sdl_joystick_mapping(line_start, mapping)) {
          ALLEGRO_ERROR("Could not parse mapping line: %s\n", line);
 #ifdef JOYSTICK_DEBUG
          print_mapping(mapping);
